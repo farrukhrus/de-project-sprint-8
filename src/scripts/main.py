@@ -45,7 +45,7 @@ def foreach_batch_function(df, epoch_id):
         .save()
 
     # создаём df для отправки в Kafka. Сериализация в json.
-    df_serialized = df_feedback.select(F.to_json(F.struct(F.col('*'))).alias('value')).select('value')
+    df_serialized = df_feedback.select(F.to_json(F.struct(F.col('*'))).alias('value')).select('value').drop("feedback")
     # отправляем сообщения в результирующий топик Kafka без поля feedback
     df_serialized.write \
         .format('kafka') \
@@ -98,10 +98,10 @@ filtered_read_stream_df = (
                 .cast(TimestampType()))
     .withWatermark("dt", "1 minutes").drop("dt")
     .where(
-        f"adv_campaign_datetime_start >= {current_timestamp_utc} and adv_campaign_datetime_end <= {current_timestamp_utc}"
+        f"adv_campaign_datetime_start > {current_timestamp_utc} and adv_campaign_datetime_end < {current_timestamp_utc}"
     )
 )
-#filtered_read_stream_df.writeStream.outputMode("append").format("console").start().awaitTermination() 
+# filtered_read_stream_df.writeStream.outputMode("append").format("console").start().awaitTermination() 
     
 # вычитываем всех пользователей с подпиской на рестораны
 subscribers_restaurant_df = spark.read \
@@ -111,7 +111,9 @@ subscribers_restaurant_df = spark.read \
                     .option('dbtable', 'public.subscribers_restaurants') \
                     .option('user', 'student') \
                     .option('password', 'de-student') \
-                    .load()
+                    .load() \
+                    .select('restaurant_id', 'client_id') \
+                    .distinct()
 
 subscribers_restaurant_df.show(truncate=False, n=15)
 
