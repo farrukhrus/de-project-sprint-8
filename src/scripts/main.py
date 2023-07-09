@@ -45,7 +45,7 @@ def foreach_batch_function(df, epoch_id):
         .save()
 
     # создаём df для отправки в Kafka. Сериализация в json.
-    df_serialized = df_feedback.select(F.to_json(F.struct(F.col('*'))).alias('value')).select('value').drop("feedback")
+    df_serialized = df_feedback.drop("feedback").select(F.to_json(F.struct(F.col('*'))).alias('value')).select('value')
     # отправляем сообщения в результирующий топик Kafka без поля feedback
     df_serialized.write \
         .format('kafka') \
@@ -98,7 +98,7 @@ filtered_read_stream_df = (
                 .cast(TimestampType()))
     .withWatermark("dt", "1 minutes").drop("dt")
     .where(
-        f"adv_campaign_datetime_start > {current_timestamp_utc} and adv_campaign_datetime_end < {current_timestamp_utc}"
+        f"adv_campaign_datetime_start <= {current_timestamp_utc} and adv_campaign_datetime_end > {current_timestamp_utc}"
     )
 )
 # filtered_read_stream_df.writeStream.outputMode("append").format("console").start().awaitTermination() 
